@@ -1,15 +1,30 @@
 package io.github.novel_reptile.config;
 
 import io.github.novel_reptile.model.Novel;
-import io.github.novel_reptile.pipline.MysqlModelPipline;
+import io.github.novel_reptile.model.NovelChapter;
+import io.github.novel_reptile.pipline.MysqlNovelChapterModelPipline;
+import io.github.novel_reptile.pipline.MysqlNovelModelPipline;
+import io.github.novel_reptile.scheduler.RedisScheduler;
+import io.github.novel_reptile.service.NovelChapterService;
 import io.github.novel_reptile.service.NovelService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
+import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 import us.codecraft.webmagic.Site;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.model.OOSpider;
 import us.codecraft.webmagic.pipeline.PageModelPipeline;
+import us.codecraft.webmagic.scheduler.BloomFilterDuplicateRemover;
 
 import static io.github.novel_reptile.utils.SiteUtil.getDefaultSite;
 
@@ -21,19 +36,34 @@ import static io.github.novel_reptile.utils.SiteUtil.getDefaultSite;
 @Configuration
 public class ReptileConfiguration {
 
-    private static final String BI_QU = "https://www.qbiqu.com/";
+    private static final String BI_QU = "https://www.xbiquwx.la/";
 
-    private static final Integer DEFAULT_THREAD_NUM  = 5;
+    private static final Integer DEFAULT_NOVEL_THREAD_NUM  = 5;
 
-    @Bean("novelSpider")
-    public Spider novelSpider(@Qualifier("mysqlModelPipline") PageModelPipeline mysqlModelPipline){
-        return OOSpider.create(getDefaultSite())
-                .addPageModel(mysqlModelPipline,Novel.class)
-                .addUrl(BI_QU).thread(DEFAULT_THREAD_NUM);
+    @Bean
+    public RedisScheduler redisScheduler(@Qualifier("redisTemplate") RedisTemplate<String,Object> template){
+        return new RedisScheduler(template);
     }
 
-    @Bean("mysqlModelPipline")
-    public PageModelPipeline<Novel> mysqlModelPipline(NovelService novelService){
-        return new MysqlModelPipline(novelService);
+
+    @Bean("novelSpider")
+    public Spider novelSpider(@Qualifier("mysqlNovelModelPipline") PageModelPipeline mysqlModelPipline,
+                              RedisScheduler redisScheduler){
+        return OOSpider.create(getDefaultSite())
+                .addPageModel(mysqlModelPipline,Novel.class)
+                .addUrl(BI_QU).thread(DEFAULT_NOVEL_THREAD_NUM).setScheduler(redisScheduler.setDuplicateRemover(new BloomFilterDuplicateRemover(10000000)));
+    }
+
+
+    @Bean("mysqlNovelModelPipline")
+    public PageModelPipeline<Novel> mysqlModelPipline(NovelService novelService,
+                                                      @Qualifier("asyncTaskExcutor")TaskExecutor taskExecutor,
+                                                      @Qualifier("mysqlNovelChapterModelPipline") PageModelPipeline<NovelChapter> mysqlNovelChapterModelPipline ){
+        return new MysqlNovelModelPipline(novelService,taskExecutor,mysqlNovelChapterModelPipline);
+    }
+
+    @Bean("mysqlNovelChapterModelPipline")
+    public PageModelPipeline<NovelChapter> mysqlNovelChapterModelPipline(NovelChapterService novelChapterService){
+        return new MysqlNovelChapterModelPipline(novelChapterService);
     }
 }

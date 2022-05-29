@@ -21,8 +21,8 @@ import java.util.Date;
  */
 @Data
 @TableName("novel")
-@TargetUrl("https://www.qbiqu.com/\\d+_\\d+/")
-@HelpUrl("https://www.qbiqu.com/")
+@TargetUrl("https://www.xbiquwx.la/\\d+_\\d+/")
+@HelpUrl("https://www.xbiquwx.la/paihangbang_allvisit/\\d+.html")
 public class Novel {
 
     @TableId(type = IdType.ASSIGN_ID)
@@ -30,17 +30,37 @@ public class Novel {
 
     @TableField("novel_id")
     @Formatter(value = "",formatter = StringToLongTemplateFormatter.class)
-    @ExtractByUrl("https://www.qbiqu.com/(\\d+_\\d+)/")
+    @ExtractByUrl(value = "https://www.xbiquwx.la/(\\d+_\\d+)/",notNull = true)
     private Long novelId;
 
     @TableField("novel_name")
-    @ExtractBy("//div[@id='maininfo']/div[@id='info']/h1/text()")
+    @ExtractBy(value = "//div[@id='maininfo']/div[@id='info']/h1/text()",notNull = true)
     private String novelName;
 
     @TableField("author")
-    @Formatter(value = "",formatter = StringToAuthorTemplateFormatter.class)
-    @ExtractBy("//div[@id='maininfo']/div[@id='info']/p[1]/text()")
+    @Formatter(value = "",formatter = StringToSplitTemplateFormatter.class)
+    @ExtractBy(value = "//div[@id='maininfo']/div[@id='info']/p[1]/text()",notNull = true)
     private String author;
+
+    @TableField("description")
+    @ExtractBy("//div[@id='maininfo']/div[@id='intro']/p[1]/text()")
+    private String description;
+
+    @TableField("source")
+    private String source;
+
+    @TableField("novel_type")
+    @Formatter(value = "",formatter = StringToSplitTemplateFormatter.class)
+    @ExtractBy(value = "//div[@id='maininfo']/div[@id='info']/p[2]/text()")
+    private String novelType;
+
+    @TableField("recent_chapter")
+    @ExtractBy(value = "//div[@id='maininfo']/div[@id='info']/p[4]/a/text()")
+    private String recentChapter;
+
+    @TableField("source_url")
+    @ExtractByUrl(value = "(https://www.xbiquwx.la/\\d+_\\d+/)",notNull = true)
+    private String sourceUrl;
 
     @TableField("update_time")
     @Formatter(value = "",formatter = StringToDateTemplateFormatter.class)
@@ -48,12 +68,10 @@ public class Novel {
     private Date updateTime;
 
 
-    @TableField(value = "create_time")
+    @TableField(value = "create_time",fill = FieldFill.INSERT)
     private Date createTime;
 
-    @TableField("description")
-    @ExtractBy("//div[@id='maininfo']/div[@id='intro']/p[1]/text()")
-    private String description;
+
 
 
     public static class StringToLongTemplateFormatter implements  ObjectFormatter<Long>{
@@ -78,7 +96,7 @@ public class Novel {
 
         @Override
         public Date format(String raw) throws Exception {
-            int index = raw.indexOf("：");
+            int index = raw.indexOf(":");
 
             String time = raw.substring(index+1).trim();
             return DateUtil.parse(time);
@@ -95,11 +113,11 @@ public class Novel {
         }
     }
 
-    public static class StringToAuthorTemplateFormatter implements ObjectFormatter<String>{
+    public static class StringToSplitTemplateFormatter implements ObjectFormatter<String>{
 
         @Override
         public String format(String s) throws Exception {
-            String[] split = s.split("：");
+            String[] split = s.split(":");
 
             String author = split[split.length-1].trim();
 

@@ -6,4 +6,5 @@ package io.github.novel_reptile.service;
  * @Version 1.0.0
  */
 public interface ReptileService {
+    void run();
 }
