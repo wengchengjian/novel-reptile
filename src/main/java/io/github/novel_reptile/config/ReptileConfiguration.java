@@ -1,5 +1,6 @@
 package io.github.novel_reptile.config;
 
+import io.github.novel_reptile.handler.CustomProxyProvider;
 import io.github.novel_reptile.model.Novel;
 import io.github.novel_reptile.model.NovelChapter;
 import io.github.novel_reptile.pipline.MysqlNovelChapterModelPipline;
@@ -18,12 +19,14 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.web.client.RestTemplate;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import us.codecraft.webmagic.Site;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.model.OOSpider;
 import us.codecraft.webmagic.pipeline.PageModelPipeline;
+import us.codecraft.webmagic.proxy.ProxyProvider;
 import us.codecraft.webmagic.scheduler.BloomFilterDuplicateRemover;
 
 import static io.github.novel_reptile.utils.SiteUtil.getDefaultSite;
@@ -43,6 +46,10 @@ public class ReptileConfiguration {
     @Bean
     public RedisScheduler redisScheduler(@Qualifier("redisTemplate") RedisTemplate<String,Object> template){
         return new RedisScheduler(template);
+    }
+    @Bean
+    public ProxyProvider proxyProvider(NovelProperties properties, RestTemplate restTemplate){
+        return new CustomProxyProvider(properties,restTemplate);
     }
 
 
