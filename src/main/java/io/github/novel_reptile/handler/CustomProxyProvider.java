@@ -101,7 +101,7 @@ public class CustomProxyProvider implements ProxyProvider {
                 log.info("proxy mode recovering...");
                 /**
                  * 三种情况
-                 * 1. 刚进来，就有其他线程已经cas了，所以双重检测一下，成功直接跳过cas
+                 * 1. 刚进来，就有其他线程已经cas成功了，所以双重检测一下，成功直接跳过cas
                  * 2. 当前线程去cas了，且cas成功，直接就进行下一步去取proxy的流程
                  * 3. cas失败直接返回空，防止上下逻辑不一致的情况
                  */
@@ -125,12 +125,12 @@ public class CustomProxyProvider implements ProxyProvider {
         log.info("it's try to acquire a proxy");
         if(enabled.get()){
             while (true){
-                // 判断代理模式是否开启，如果在超时时compareAndSet失败后也没有关系，会在下一次循环时正确退出
+                // 判断代理模式是否开启，如果在超时时cas失败后也没有关系，线程会在下一次循环时正确退出
                 if(!enabled.get()){
                     break;
                 }
                 // 判断是否出书画从指定接口初始化proxy数组
-                if(proxies==null && proxies.size()==0) {
+                if(proxies==null || proxies.size()==0) {
                     initProxies();
                 }
                 // 获得一个可以使用的代理
@@ -181,6 +181,10 @@ public class CustomProxyProvider implements ProxyProvider {
         return false;
     }
 
+    /**
+     * 退出代理模式
+     * @return
+     */
     public boolean quitProxyMode(){
         if(enabled.compareAndSet(true,false)){
             // 记录自动恢复时间
@@ -193,9 +197,11 @@ public class CustomProxyProvider implements ProxyProvider {
         return false;
     }
 
+    /**
+     * 初始化代理列表
+     */
     public  void initProxies() {
         Result<Page<IpAgentModel>> result = restTemplate.getForObject(address, Result.class);
-
         // 如果值是正确的
         if (result != null && result.getSuccess()) {
             List<IpAgentModel> records = result.getData().getRecords();
@@ -206,6 +212,10 @@ public class CustomProxyProvider implements ProxyProvider {
         }
     }
 
+    /**
+     * 轮训代理列表
+     * @return
+     */
     private int incrForLoop() {
         if(proxies!=null){
             proxies = new CopyOnWriteArrayList<>();
